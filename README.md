@@ -3,7 +3,6 @@
 <div align="center">
 
 ![Status](https://img.shields.io/badge/Status-En%20Développement-yellow?style=for-the-badge)
-![License](https://img.shields.io/badge/License-MIT-blue?style=for-the-badge)
 ![Year](https://img.shields.io/badge/Année-2025--2026-green?style=for-the-badge)
 
 ### 📍 Lycée Lamennais - Ploërmel
@@ -16,17 +15,17 @@
 
 > **Un projet innovant de **Terminales STI2D** en spécialité **SIN** (Systèmes d'Information et Numérique)**
 
-Ce projet ambitieux vise à développer une **station météorologique intelligente** capable de collecter, analyser et visualiser les données climatiques en temps réel. Une fusion parfaite entre électronique, programmation et analyse de données ! 🚀
+Ce projet ambitieux vise à développer une **station météorologique intelligente** capable de collecter, analyser et visualiser les données climatiques en temps réel depuis une antenne météo d'une serre connectée. Une fusion parfaite entre électronique, programmation et analyse de données ! 
 
 ---
 
 ## 🎯 Objectifs du Projet
 
-- ✨ Concevoir une station météo autonome et connectée
-- 📊 Collecter et traiter les données environnementales en temps réel
-- 🌐 Créer une interface utilisateur intuitive et moderne
-- 🔧 Intégrer des capteurs spécialisés pour une précision maximale
-- 📈 Analyser les tendances climatiques locales
+-  Concevoir une station météo autonome et connectée
+-  Collecter et traiter les données environnementales en temps réel
+-  Créer une interface utilisateur intuitive et moderne
+-  Intégrer des capteurs spécialisés pour une précision maximale
+-  Analyser les tendances climatiques locales
 
 ---
 
@@ -36,11 +35,11 @@ Ce projet ambitieux vise à développer une **station météorologique intellige
 
 | Catégorie | Technologies |
 |-----------|-------------|
-| **Électronique** | Arduino, Capteurs IoT, Microcontrôleurs |
+| **Électronique** | Arduino, Capteurs IoT, Raspberry Pi |
 | **Programmation** | Python, C++, JavaScript |
-| **Web** | HTML5, CSS3, Node.js |
-| **Base de Données** | SQLite / PostgreSQL |
-| **Outils** | Git, GitHub, VS Code |
+| **Web** | HTML5, CSS3 |
+| **Base de Données** | MySQL |
+| **Outils** | Claude , GitHub, VS Code |
 
 </div>
 
@@ -48,6 +47,7 @@ Ce projet ambitieux vise à développer une **station météorologique intellige
 
 ## 📋 Structure du Projet
 
+## A MODIFIER !!
 ```
 projet-station-meteo/
 ├── 📁 hardware/          # Schémas électroniques et configurations
@@ -65,7 +65,6 @@ projet-station-meteo/
 ### Prérequis
 - Git
 - Python 3.8+
-- Node.js 16+
 - Arduino IDE
 
 ### Étapes
@@ -98,18 +97,17 @@ npm start
 
 ### 📱 Interface
 - Dashboard en temps réel avec graphiques animés
-- Historique des données avec filtres avancés
-- Alertes personnalisables
+- Historique des données avec filtres avancés ( a faire ! )
 - Mode sombre/clair automatique
-
-### 🔐 Sécurité
-- Authentification sécurisée
-- Chiffrement des données sensibles
-- Logs d'activité détaillés
 
 ---
 
 ## 👥 Équipe
+
+- Kalvin
+- Noah
+- Noé ( le goat )
+- Alwyn
 
 <div align="center">
 
@@ -135,34 +133,11 @@ Vous souhaitez contribuer au projet ? C'est fantastique ! 🎉
 
 ---
 
-## 📖 Documentation
-
-Pour plus d'informations détaillées, consultez notre [Documentation Complète](./docs/README.md).
-
----
-
-## 📄 License
-
-Ce projet est licencié sous la Licence MIT - voir le fichier [LICENSE](./LICENSE) pour plus de détails.
-
----
-
 ## 🌟 Remerciements
 
 Merci à tous les membres du projet et à nos enseignants pour leur soutien et leurs précieux conseils ! 🙏
 
+Merci à JaguarFBL dispo ici -> https://github.com/JaguarFBL
 <div align="center">
-
-### ⭐ N'oublie pas de mettre une étoile si tu aimes ce projet !
-
-**Dernière mise à jour : 2026-05-06**
-
-</div>
-
----
-
-<div align="center">
-
-**Construisant l'avenir, une donnée à la fois** 🌍📡
 
 </div>
