@@ -1,0 +1,873 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Blog Station Météo</title>
+<link rel="icon" type="image/png" href="meteo/logo.png">
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:ital,wght@0,300;0,400;1,300&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --s1-bg: #0a0a0f;
+    --s2-bg: #0f0a05;
+    --s3-bg: #050f0a;
+    --s4-bg: #0a050f;
+    --s5-bg: #0f0505;
+    --s6-bg: #04080f;
+    --accent: #e8d5a3;
+    --duration: 5000;
+  }
+
+  html, body {
+    width: 100%; height: 100%;
+    overflow: hidden;
+    cursor: none;
+  }
+
+  .cursor {
+    position: fixed;
+    width: 6px; height: 6px;
+    background: var(--accent);
+    border-radius: 50%;
+    pointer-events: none;
+    z-index: 9999;
+    transform: translate(-50%, -50%);
+    transition: transform 0.1s;
+  }
+  .cursor-ring {
+    position: fixed;
+    width: 32px; height: 32px;
+    border: 1px solid rgba(232,213,163,0.5);
+    border-radius: 50%;
+    pointer-events: none;
+    z-index: 9998;
+    transform: translate(-50%, -50%);
+    transition: transform 0.18s ease, width 0.3s, height 0.3s;
+  }
+
+  .show {
+    position: fixed; inset: 0;
+    font-family: 'DM Sans', sans-serif;
+  }
+
+  .slide {
+    position: absolute; inset: 0;
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    opacity: 0;
+    transition: opacity 1.2s cubic-bezier(0.77,0,0.18,1);
+    overflow: hidden;
+    pointer-events: none;
+  }
+  .slide.active {
+    opacity: 1;
+    pointer-events: all;
+  }
+
+  .s1 { background: var(--s1-bg); }
+  .s2 { background: var(--s2-bg); }
+  .s3 { background: var(--s3-bg); }
+  .s4 { background: var(--s4-bg); }
+  .s5 { background: var(--s5-bg); }
+  .s6 { background: var(--s6-bg); }
+
+  .slide::before {
+    content: '';
+    position: absolute; inset: 0;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.04'/%3E%3C/svg%3E");
+    background-size: 200px;
+    opacity: 0.5;
+    z-index: 0;
+    pointer-events: none;
+  }
+
+  .orb {
+    position: absolute;
+    border-radius: 50%;
+    filter: blur(80px);
+    opacity: 0.18;
+    pointer-events: none;
+    animation: drift 12s ease-in-out infinite alternate;
+  }
+  @keyframes drift {
+    from { transform: translate(0,0) scale(1); }
+    to   { transform: translate(40px, -30px) scale(1.1); }
+  }
+
+  .slide-inner {
+    position: relative; z-index: 2;
+    display: flex; flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    padding: 2rem;
+    width: 100%;
+    max-width: 900px;
+    gap: 2.5rem;
+  }
+
+  .eyebrow {
+    font-family: 'DM Sans', sans-serif;
+    font-size: 0.7rem;
+    font-weight: 300;
+    letter-spacing: 0.35em;
+    text-transform: uppercase;
+    color: var(--accent);
+    transform: translateY(20px);
+    transition: transform 1s 0.3s ease, opacity 1s 0.3s ease;
+    opacity: 0;
+  }
+  .slide.active .eyebrow {
+    transform: translateY(0);
+    opacity: 0.7;
+  }
+
+  .img-wrap {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    opacity: 0;
+    transform: translateY(30px) scale(0.94);
+    transition:
+      opacity 1s 0.55s cubic-bezier(0.16,1,0.3,1),
+      transform 1s 0.55s cubic-bezier(0.16,1,0.3,1);
+  }
+  .slide.active .img-wrap {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+
+  .img-wrap img {
+    display: block;
+    max-width: clamp(180px, 42vw, 480px);
+    max-height: 60vh;
+    width: auto;
+    height: auto;
+    object-fit: contain;
+    border-radius: 16px;
+    border: 1px solid rgba(232, 213, 163, 0.18);
+    box-shadow:
+      0 0 40px rgba(232, 213, 163, 0.12),
+      0 0 100px rgba(232, 213, 163, 0.06),
+      0 24px 64px rgba(0,0,0,0.55);
+    transition:
+      transform 0.55s cubic-bezier(0.16,1,0.3,1),
+      box-shadow 0.55s ease,
+      border-color 0.55s ease;
+  }
+  .img-wrap img:hover {
+    transform: scale(1.04);
+    border-color: rgba(232, 213, 163, 0.45);
+    box-shadow:
+      0 0 60px rgba(232, 213, 163, 0.22),
+      0 0 140px rgba(232, 213, 163, 0.1),
+      0 30px 80px rgba(0,0,0,0.6);
+  }
+
+  .img-ring {
+    position: absolute;
+    width: clamp(220px, 50vw, 560px);
+    height: clamp(220px, 50vw, 560px);
+    border-radius: 50%;
+    border: 1px solid rgba(232, 213, 163, 0.08);
+    animation: pulse-ring 4s ease-in-out infinite;
+    pointer-events: none;
+  }
+  .img-ring:nth-child(2) {
+    width: clamp(280px, 62vw, 680px);
+    height: clamp(280px, 62vw, 680px);
+    border-color: rgba(232, 213, 163, 0.04);
+    animation-delay: 0.8s;
+  }
+  @keyframes pulse-ring {
+    0%, 100% { opacity: 0.5; transform: scale(1); }
+    50%       { opacity: 1;   transform: scale(1.04); }
+  }
+
+  .big-num {
+    position: absolute;
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: clamp(12rem, 30vw, 28rem);
+    color: rgba(255,255,255,0.025);
+    line-height: 1;
+    user-select: none;
+    pointer-events: none;
+    z-index: 1;
+  }
+
+  .deco-line {
+    position: absolute;
+    width: 1px;
+    background: linear-gradient(to bottom, transparent, var(--accent), transparent);
+    opacity: 0.25;
+    pointer-events: none;
+    z-index: 1;
+  }
+
+  .s1 .orb { background: #5b4fff; width: 500px; height: 500px; top: -100px; left: -100px; }
+  .s2 .orb { background: #ff9e40; width: 400px; height: 400px; bottom: -80px; right: -80px; }
+  .s3 .orb { background: #40ffb0; width: 450px; height: 450px; top: 50%; left: 50%; transform: translate(-50%,-50%); }
+  .s4 .orb { background: #b040ff; width: 500px; height: 500px; top: 0; right: 0; }
+  .s5 .orb { background: #ff4060; width: 420px; height: 420px; bottom: 0; left: 0; }
+  .s6 .orb { background: #0096ff; width: 600px; height: 600px; top: 50%; left: 50%; transform: translate(-50%,-50%); }
+
+  /* ── UI overlay ── */
+  .ui {
+    position: fixed; z-index: 100;
+    pointer-events: none;
+  }
+
+  .counter {
+    top: 2rem; right: 2.5rem;
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 0.9rem;
+    letter-spacing: 0.15em;
+    color: rgba(255,255,255,0.35);
+  }
+  .counter span { color: var(--accent); }
+
+  .progress-wrap {
+    bottom: 0; left: 0; right: 0;
+    height: 2px;
+    background: rgba(255,255,255,0.06);
+  }
+  .progress-bar {
+    height: 100%;
+    background: var(--accent);
+    width: 0%;
+    transition: width linear;
+  }
+
+  .dots {
+    left: 2.5rem; top: 50%;
+    transform: translateY(-50%);
+    display: flex; flex-direction: column; gap: 12px;
+    pointer-events: all;
+  }
+  .dot {
+    width: 4px; height: 4px;
+    border-radius: 50%;
+    background: rgba(255,255,255,0.25);
+    cursor: pointer;
+    transition: transform 0.3s, background 0.3s, height 0.3s;
+    border: none;
+    padding: 0;
+  }
+  .dot.active {
+    background: var(--accent);
+    height: 24px;
+    border-radius: 2px;
+  }
+  .dot:hover:not(.active) {
+    background: rgba(255,255,255,0.6);
+    transform: scaleX(1.5);
+  }
+
+  .arrows {
+    right: 2.5rem; top: 50%;
+    transform: translateY(-50%);
+    display: flex; flex-direction: column; gap: 8px;
+    pointer-events: all;
+  }
+  .arrow-btn {
+    width: 38px; height: 38px;
+    border: 1px solid rgba(255,255,255,0.15);
+    background: rgba(255,255,255,0.04);
+    color: rgba(255,255,255,0.6);
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer;
+    transition: background 0.2s, border-color 0.2s, color 0.2s;
+    font-size: 14px;
+  }
+  .arrow-btn:hover {
+    background: rgba(232,213,163,0.15);
+    border-color: var(--accent);
+    color: var(--accent);
+  }
+
+  .curl_texte {
+    color: rgb(255, 255, 255);
+    font-size: 1.7rem;
+  }
+
+  /* ── Slide graphiques ── */
+  .slide-charts {
+    position: relative; z-index: 2;
+    width: 100%;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 2rem 5rem 2.5rem 5rem;
+    gap: 1.2rem;
+    opacity: 0;
+    transform: translateY(24px);
+    transition: opacity 1s 0.3s ease, transform 1s 0.3s ease;
+  }
+  .slide.active .slide-charts {
+    opacity: 1;
+    transform: translateY(0);
+  }
+
+  .charts-eyebrow {
+    font-size: 0.7rem;
+    font-weight: 300;
+    letter-spacing: 0.35em;
+    text-transform: uppercase;
+    color: var(--accent);
+    opacity: 0.7;
+    align-self: flex-start;
+  }
+
+  .charts-title {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 2.2rem;
+    letter-spacing: 3px;
+    color: rgba(255,255,255,0.85);
+    align-self: flex-start;
+    line-height: 1;
+    margin-top: -0.5rem;
+  }
+
+  .charts-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    grid-template-rows: 1fr 1fr;
+    gap: 16px;
+    width: 100%;
+    flex: 1;
+    min-height: 0;
+  }
+
+  .chart-panel {
+    background: rgba(255,255,255,0.04);
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 14px;
+    padding: 14px 18px 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    overflow: hidden;
+  }
+
+  .chart-panel-top {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+  }
+
+  .chart-panel-title {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 1.05rem;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+  }
+
+  .chart-panel-val {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 1.7rem;
+    letter-spacing: 1px;
+    line-height: 1;
+  }
+
+  .chart-panel-unit {
+    font-family: 'DM Sans', sans-serif;
+    font-size: 0.75rem;
+    font-weight: 300;
+    color: #ffffff;
+    opacity: 0.85;
+    margin-left: 3px;
+  }
+
+  .chart-panel-range {
+    font-size: 0.68rem;
+    color: #ffffff;
+    opacity: 0.85;
+    letter-spacing: 0.5px;
+  }
+
+  .chart-panel-badge {
+    font-size: 0.6rem;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    background: rgba(255,255,255,0.07);
+    border: 1px solid rgba(255,255,255,0.12);
+    border-radius: 20px;
+    padding: 2px 8px;
+    color: rgba(255,255,255,0.45);
+    margin-top: 2px;
+  }
+
+  .chart-panel-canvas-wrap {
+    position: relative;
+    flex: 1;
+    min-height: 0;
+  }
+
+  /* couleurs par panneau */
+  .cp-temp  .chart-panel-title { color: #f97316; }
+  .cp-temp  .chart-panel-val   { color: #f97316; }
+  .cp-hum   .chart-panel-title { color: #38bdf8; }
+  .cp-hum   .chart-panel-val   { color: #38bdf8; }
+  .cp-lux   .chart-panel-title { color: #fbbf24; }
+  .cp-lux   .chart-panel-val   { color: #fbbf24; }
+  .cp-vent  .chart-panel-title { color: #34d399; }
+  .cp-vent  .chart-panel-val   { color: #34d399; }
+
+  .status-dot {
+    display: inline-block;
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: #34d399;
+    margin-right: 6px;
+    animation: blink 2s ease-in-out infinite;
+  }
+  @keyframes blink {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.3; }
+  }
+  .status-dot.stale { background: #f59e0b; }
+
+  .charts-footer {
+    align-self: flex-end;
+    font-size: 0.65rem;
+    letter-spacing: 1px;
+    color: rgba(255,255,255,0.25);
+    text-transform: uppercase;
+  }
+</style>
+</head>
+<body>
+
+<div class="cursor" id="cursor"></div>
+<div class="cursor-ring" id="cursorRing"></div>
+
+<div class="show" id="show">
+
+  <!-- SLIDE 1 -->
+  <div class="slide s1 active" data-index="0">
+    <div class="orb"></div>
+    <div class="slide-inner">
+      <p class="eyebrow">terminal STI2D SIN 2026</p>
+      <div class="img-wrap">
+        <div class="img-ring"></div>
+        <div class="img-ring"></div>
+        <img src="blog/noe et moi.jpeg" alt="photos de nous">
+      </div>
+    </div>
+  </div>
+
+  <!-- SLIDE 2 -->
+  <div class="slide s2" data-index="1">
+    <div class="orb"></div>
+    <div class="deco-line" style="height:50%;bottom:10%;right:22%;"></div>
+    <div class="slide-inner">
+      <p class="eyebrow">terminal STI2D SIN 2026</p>
+      <div class="img-wrap">
+        <div class="img-ring"></div>
+        <div class="img-ring"></div>
+        <img src="blog/Kalvin.jpeg" alt="Logo">
+      </div>
+    </div>
+  </div>
+
+  <!-- SLIDE 3 -->
+  <div class="slide s3" data-index="2">
+    <div class="orb"></div>
+    <div class="deco-line" style="height:70%;top:5%;left:50%;"></div>
+    <div class="slide-inner">
+      <p class="eyebrow">terminal STI2D SIN 2026</p>
+      <div class="img-wrap">
+        <div class="img-ring"></div>
+        <div class="img-ring"></div>
+        <img src="blog/image-20260325-084054-c82ca775.jpeg" alt="Logo">
+      </div>
+    </div>
+  </div>
+
+  <!-- SLIDE 4 -->
+  <div class="slide s4" data-index="3">
+    <div class="orb"></div>
+    <div class="deco-line" style="height:55%;top:15%;right:30%;"></div>
+    <div class="slide-inner">
+      <p class="eyebrow">terminal STI2D SIN 2026</p>
+      <div class="img-wrap">
+        <div class="img-ring"></div>
+        <div class="img-ring"></div>
+        <img src="blog/image-20260325-084001-d9167186.jpeg" alt="Logo">
+      </div>
+    </div>
+  </div>
+
+  <!-- SLIDE 5 -->
+  <div class="slide s5" data-index="4">
+    <div class="orb"></div>
+    <div class="deco-line" style="height:65%;bottom:0;left:35%;"></div>
+    <div class="slide-inner">
+      <p class="eyebrow">terminal STI2D SIN 2026</p>
+      <div class="img-wrap">
+        <div class="img-ring"></div>
+        <div class="img-ring"></div>
+        <img src="blog/station  paysage .jpeg" alt="Station météo logo">
+      </div>
+      <div class="curl_texte">
+        <p> la station météo est située a coté de la serre</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- SLIDE 6 — Graphiques temps réel -->
+  <div class="slide s6" data-index="5">
+    <div class="orb"></div>
+
+    <div class="slide-charts">
+      <p class="charts-eyebrow">terminal STI2D SIN 2026 &nbsp;·&nbsp; <span class="status-dot" id="chart-status-dot"></span>données en direct</p>
+      <p class="charts-title">Historique · Des 24 dernières heures</p>
+
+      <div class="charts-grid">
+
+        <!-- Température -->
+        <div class="chart-panel cp-temp">
+          <div class="chart-panel-top">
+            <div>
+              <div class="chart-panel-title">🌡 Température</div>
+              <div>
+                <span class="chart-panel-val" id="cv-temp">--</span><span class="chart-panel-unit">°C</span>
+              </div>
+              <div class="chart-panel-range" id="cr-temp">min -- / max --</div>
+            </div>
+            <span class="chart-panel-badge">30 pts</span>
+          </div>
+          <div class="chart-panel-canvas-wrap">
+            <canvas id="gc-temp" role="img" aria-label="Historique température 30 mesures">Historique de température.</canvas>
+          </div>
+        </div>
+
+        <!-- Humidité -->
+        <div class="chart-panel cp-hum">
+          <div class="chart-panel-top">
+            <div>
+              <div class="chart-panel-title">💧 Humidité</div>
+              <div>
+                <span class="chart-panel-val" id="cv-hum">--</span><span class="chart-panel-unit">%</span>
+              </div>
+              <div class="chart-panel-range" id="cr-hum">min -- / max --</div>
+            </div>
+            <span class="chart-panel-badge">30 pts</span>
+          </div>
+          <div class="chart-panel-canvas-wrap">
+            <canvas id="gc-hum" role="img" aria-label="Historique humidité 30 mesures">Historique d'humidité.</canvas>
+          </div>
+        </div>
+
+        <!-- Luminosité -->
+        <div class="chart-panel cp-lux">
+          <div class="chart-panel-top">
+            <div>
+              <div class="chart-panel-title">☀️ Luminosité</div>
+              <div>
+                <span class="chart-panel-val" id="cv-lux">--</span><span class="chart-panel-unit">lux</span>
+              </div>
+              <div class="chart-panel-range" id="cr-lux">min -- / max --</div>
+            </div>
+            <span class="chart-panel-badge">30 pts</span>
+          </div>
+          <div class="chart-panel-canvas-wrap">
+            <canvas id="gc-lux" role="img" aria-label="Historique luminosité 30 mesures">Historique de luminosité.</canvas>
+          </div>
+        </div>
+
+        <!-- Vent -->
+        <div class="chart-panel cp-vent">
+          <div class="chart-panel-top">
+            <div>
+              <div class="chart-panel-title">💨 Vent</div>
+              <div>
+                <span class="chart-panel-val" id="cv-vent">--</span><span class="chart-panel-unit">km/h</span>
+              </div>
+              <div class="chart-panel-range" id="cr-vent">min -- / max --</div>
+            </div>
+            <span class="chart-panel-badge">30 pts</span>
+          </div>
+          <div class="chart-panel-canvas-wrap">
+            <canvas id="gc-vent" role="img" aria-label="Historique vitesse du vent 30 mesures">Historique vitesse du vent.</canvas>
+          </div>
+        </div>
+
+      </div><!-- /charts-grid -->
+
+      <p class="charts-footer" id="charts-last-update">dernière mise à jour : --</p>
+    </div>
+  </div>
+
+</div><!-- /show -->
+
+<!-- UI Overlay -->
+<div class="ui counter" id="counter">
+  <span id="cur">01</span> / 06
+</div>
+
+<div class="ui progress-wrap">
+  <div class="progress-bar" id="bar"></div>
+</div>
+
+<div class="ui dots" id="dotsWrap"></div>
+
+<div class="ui arrows">
+  <button class="arrow-btn" id="btnUp" title="Précédent">&#8593;</button>
+  <button class="arrow-btn" id="btnDown" title="Suivant">&#8595;</button>
+</div>
+
+<script>
+/* ══════════════════════════
+   SLIDESHOW
+══════════════════════════ */
+const DURATION = 4000;
+const slides = document.querySelectorAll('.slide');
+const N = slides.length;
+let cur = 0, elapsed = 0, startTime = null, rafId = null;
+
+const dotsWrap = document.getElementById('dotsWrap');
+const dots = [];
+slides.forEach((_, i) => {
+  const d = document.createElement('button');
+  d.className = 'dot' + (i === 0 ? ' active' : '');
+  d.title = 'Diapositive ' + (i+1);
+  d.addEventListener('click', () => goTo(i));
+  dotsWrap.appendChild(d);
+  dots.push(d);
+});
+
+const bar = document.getElementById('bar');
+const curEl = document.getElementById('cur');
+
+function pad(n) { return String(n).padStart(2,'0'); }
+
+function goTo(n) {
+  slides[cur].classList.remove('active');
+  dots[cur].classList.remove('active');
+  cur = (n + N) % N;
+  slides[cur].classList.add('active');
+  dots[cur].classList.add('active');
+  curEl.textContent = pad(cur + 1);
+  resetTimer();
+}
+
+function resetTimer() {
+  elapsed = 0;
+  startTime = performance.now();
+  bar.style.transition = 'none';
+  bar.style.width = '0%';
+  requestAnimationFrame(tick);
+}
+
+function tick(now) {
+  const delta = (now - startTime) + elapsed;
+  const pct = Math.min(delta / DURATION * 100, 100);
+  bar.style.transition = 'none';
+  bar.style.width = pct + '%';
+  if (delta >= DURATION) { goTo(cur + 1); return; }
+  rafId = requestAnimationFrame(tick);
+}
+
+document.getElementById('btnUp').addEventListener('click', () => goTo(cur - 1));
+document.getElementById('btnDown').addEventListener('click', () => goTo(cur + 1));
+
+document.addEventListener('keydown', e => {
+  if (e.key === 'ArrowRight' || e.key === 'ArrowDown') goTo(cur + 1);
+  if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') goTo(cur - 1);
+});
+
+const cursor = document.getElementById('cursor');
+const ring = document.getElementById('cursorRing');
+let mx=0, my=0, rx=0, ry=0;
+document.addEventListener('mousemove', e => { mx = e.clientX; my = e.clientY; });
+(function animCursor() {
+  cursor.style.left = mx + 'px'; cursor.style.top = my + 'px';
+  rx += (mx - rx) * 0.12; ry += (my - ry) * 0.12;
+  ring.style.left = rx + 'px'; ring.style.top = ry + 'px';
+  requestAnimationFrame(animCursor);
+})();
+
+resetTimer();
+requestAnimationFrame(tick);
+
+/* ══════════════════════════
+   GRAPHIQUES TEMPS RÉEL
+══════════════════════════ */
+
+const MAX_PTS = 30;
+
+const history = {
+  labels: [],
+  temp: [], hum: [], lux: [], vent: []
+};
+
+let lastTs = null;
+
+/* Config commune Chart.js */
+function commonOpts(color) {
+  return {
+    responsive: true,
+    maintainAspectRatio: false,
+    animation: { duration: 350, easing: 'easeInOutQuart' },
+    plugins: {
+      legend: { display: false },
+      tooltip: {
+        backgroundColor: 'rgba(10,10,20,0.9)',
+        titleColor: color,
+        bodyColor: 'rgba(255,255,255,0.7)',
+        borderColor: color + '55',
+        borderWidth: 1,
+        padding: 8
+      }
+    },
+    scales: {
+      x: {
+        grid: { display: false },
+        border: { display: false },
+        ticks: {
+          color: 'rgba(255,255,255,0.25)',
+          font: { size: 9, family: "'DM Sans', sans-serif" },
+          maxTicksLimit: 5,
+          maxRotation: 0
+        }
+      },
+      y: {
+        grid: { color: 'rgba(255,255,255,0.05)' },
+        border: { display: false },
+        ticks: {
+          color: 'rgba(255,255,255,0.25)',
+          font: { size: 9, family: "'DM Sans', sans-serif" },
+          maxTicksLimit: 4
+        }
+      }
+    }
+  };
+}
+
+function makeLineChart(canvasId, color, sugMin, sugMax) {
+  const ctx = document.getElementById(canvasId).getContext('2d');
+  return new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels: [],
+      datasets: [{
+        data: [],
+        borderColor: color,
+        borderWidth: 1.5,
+        backgroundColor: color + '18',
+        fill: true,
+        tension: 0.45,
+        pointRadius: 2,
+        pointHoverRadius: 4,
+        pointBackgroundColor: color,
+        pointBorderColor: 'transparent'
+      }]
+    },
+    options: {
+      ...commonOpts(color),
+      scales: {
+        ...commonOpts(color).scales,
+        y: {
+          ...commonOpts(color).scales.y,
+          suggestedMin: sugMin,
+          suggestedMax: sugMax
+        }
+      }
+    }
+  });
+}
+
+const charts = {
+  temp: makeLineChart('gc-temp', '#f97316', 0, 40),
+  hum:  makeLineChart('gc-hum',  '#38bdf8', 0, 100),
+  lux:  makeLineChart('gc-lux',  '#fbbf24', 0, null),
+  vent: makeLineChart('gc-vent', '#34d399', 0, null)
+};
+
+function pushHistory(d) {
+  const ts = d.timestamp || null;
+  if (ts && ts === lastTs) return;
+  lastTs = ts;
+
+  const label = ts ? ts.slice(11, 16) : new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+  const tempV = d.temp !== null ? parseFloat(d.temp) : null;
+  const humV  = d.hum  !== null ? parseFloat(d.hum)  : null;
+  const luxV  = d.lux  !== null ? parseInt(d.lux)    : null;
+  const ventV = d.vent !== null ? parseFloat(d.vent) : null;
+
+  history.labels.push(label);
+  history.temp.push(tempV !== null ? +tempV.toFixed(1) : null);
+  history.hum.push(humV   !== null ? +humV.toFixed(0)  : null);
+  history.lux.push(luxV);
+  history.vent.push(ventV !== null ? +ventV.toFixed(1) : null);
+
+  if (history.labels.length > MAX_PTS) {
+    history.labels.shift();
+    history.temp.shift();
+    history.hum.shift();
+    history.lux.shift();
+    history.vent.shift();
+  }
+
+  refreshChart('temp', history.temp, '°C',   1, 'cv-temp', 'cr-temp');
+  refreshChart('hum',  history.hum,  '%',    0, 'cv-hum',  'cr-hum');
+  refreshChart('lux',  history.lux,  'lux',  0, 'cv-lux',  'cr-lux');
+  refreshChart('vent', history.vent, 'km/h', 1, 'cv-vent', 'cr-vent');
+
+  const tsEl = document.getElementById('charts-last-update');
+  if (tsEl) tsEl.textContent = 'dernière mise à jour : ' + (ts ? ts.slice(11, 19) : '--');
+
+  /* Statut dot */
+  const dot = document.getElementById('chart-status-dot');
+  if (dot && ts) {
+    const age = (Date.now() - new Date(ts.replace(' ', 'T')).getTime()) / 1000;
+    dot.className = 'status-dot' + (age > 120 ? ' stale' : '');
+  }
+}
+
+function refreshChart(key, arr, unit, dec, valId, rangeId) {
+  const ch = charts[key];
+  ch.data.labels = [...history.labels];
+  ch.data.datasets[0].data = [...arr];
+  ch.update('none');
+
+  const valid = arr.filter(v => v !== null);
+  if (!valid.length) return;
+
+  const last = valid[valid.length - 1];
+  const minV = Math.min(...valid);
+  const maxV = Math.max(...valid);
+
+  const vEl = document.getElementById(valId);
+  const rEl = document.getElementById(rangeId);
+  if (vEl) vEl.textContent = last.toFixed(dec);
+  if (rEl) rEl.textContent = 'min ' + minV.toFixed(dec) + ' ' + unit + '  ·  max ' + maxV.toFixed(dec) + ' ' + unit;
+}
+
+/* ── Fetch data.json ── */
+async function fetchData() {
+  try {
+    const res = await fetch('data.json?t=' + Date.now());
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const d = await res.json();
+    pushHistory(d);
+  } catch(e) {
+    console.warn('data.json inaccessible :', e.message);
+    const dot = document.getElementById('chart-status-dot');
+    if (dot) dot.className = 'status-dot stale';
+  }
+}
+
+fetchData();
+setInterval(fetchData, 5000);
+</script>
+</body>
+</html>

@@ -1,0 +1,502 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Diaporama</title>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:ital,wght@0,300;0,400;1,300&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --s1-bg: #0a0a0f;
+    --s2-bg: #0f0a05;
+    --s3-bg: #050f0a;
+    --s4-bg: #0a050f;
+    --s5-bg: #0f0505;
+    --accent: #e8d5a3;
+    --duration: 5000;
+  }
+
+  html, body {
+    width: 100%; height: 100%;
+    overflow: hidden;
+    cursor: none;
+  }
+
+  /* Custom cursor */
+  .cursor {
+    position: fixed;
+    width: 6px; height: 6px;
+    background: var(--accent);
+    border-radius: 50%;
+    pointer-events: none;
+    z-index: 9999;
+    transform: translate(-50%, -50%);
+    transition: transform 0.1s;
+  }
+  .cursor-ring {
+    position: fixed;
+    width: 32px; height: 32px;
+    border: 1px solid rgba(232,213,163,0.5);
+    border-radius: 50%;
+    pointer-events: none;
+    z-index: 9998;
+    transform: translate(-50%, -50%);
+    transition: transform 0.18s ease, width 0.3s, height 0.3s;
+  }
+
+  /* ─── Slideshow container ─── */
+  .show {
+    position: fixed; inset: 0;
+    font-family: 'DM Sans', sans-serif;
+  }
+
+  /* ─── Slides ─── */
+  .slide {
+    position: absolute; inset: 0;
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    opacity: 0;
+    transition: opacity 1.2s cubic-bezier(0.77,0,0.18,1);
+    overflow: hidden;
+    pointer-events: none;
+  }
+  .slide.active {
+    opacity: 1;
+    pointer-events: all;
+  }
+
+  /* Slide backgrounds */
+  .s1 { background: var(--s1-bg); }
+  .s2 { background: var(--s2-bg); }
+  .s3 { background: var(--s3-bg); }
+  .s4 { background: var(--s4-bg); }
+  .s5 { background: var(--s5-bg); }
+
+  /* Noise texture overlay */
+  .slide::before {
+    content: '';
+    position: absolute; inset: 0;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.04'/%3E%3C/svg%3E");
+    background-size: 200px;
+    opacity: 0.5;
+    z-index: 0;
+    pointer-events: none;
+  }
+
+  /* Glow orb */
+  .orb {
+    position: absolute;
+    border-radius: 50%;
+    filter: blur(80px);
+    opacity: 0.18;
+    pointer-events: none;
+    animation: drift 12s ease-in-out infinite alternate;
+  }
+  @keyframes drift {
+    from { transform: translate(0,0) scale(1); }
+    to   { transform: translate(40px, -30px) scale(1.1); }
+  }
+
+  /* ─── Slide content ─── */
+  .slide-inner {
+    position: relative; z-index: 2;
+    display: flex; flex-direction: column;
+    align-items: center; text-align: center;
+    padding: 2rem;
+    max-width: 900px;
+  }
+
+  .eyebrow {
+    font-family: 'DM Sans', sans-serif;
+    font-size: 0.7rem;
+    font-weight: 300;
+    letter-spacing: 0.35em;
+    text-transform: uppercase;
+    color: var(--accent);
+    opacity: 0.7;
+    margin-bottom: 1.8rem;
+    transform: translateY(20px);
+    transition: transform 1s 0.3s ease, opacity 1s 0.3s ease;
+    opacity: 0;
+  }
+  .slide.active .eyebrow {
+    transform: translateY(0);
+    opacity: 0.7;
+  }
+
+  .headline {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: clamp(4rem, 11vw, 10rem);
+    line-height: 0.92;
+    letter-spacing: 0.02em;
+    color: #fff;
+    transform: translateY(40px);
+    opacity: 0;
+    transition: transform 1s 0.5s cubic-bezier(0.16,1,0.3,1), opacity 1s 0.5s ease;
+  }
+  .slide.active .headline {
+    transform: translateY(0);
+    opacity: 1;
+  }
+
+  .headline em {
+    font-style: normal;
+    color: var(--accent);
+    -webkit-text-stroke: 0px;
+  }
+
+  .headline .outline {
+    -webkit-text-stroke: 1px rgba(255,255,255,0.3);
+    color: transparent;
+  }
+
+  .sub {
+    font-size: clamp(0.85rem, 1.5vw, 1rem);
+    font-weight: 300;
+    font-style: italic;
+    color: rgba(255,255,255,0.45);
+    margin-top: 2rem;
+    letter-spacing: 0.05em;
+    transform: translateY(20px);
+    opacity: 0;
+    transition: transform 1s 0.7s ease, opacity 1s 0.7s ease;
+    max-width: 520px;
+    line-height: 1.8;
+  }
+  .slide.active .sub {
+    transform: translateY(0);
+    opacity: 1;
+  }
+
+  /* Big number decoration */
+  .big-num {
+    position: absolute;
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: clamp(12rem, 30vw, 28rem);
+    color: rgba(255,255,255,0.025);
+    line-height: 1;
+    user-select: none;
+    pointer-events: none;
+    z-index: 1;
+  }
+
+  /* Diagonal line deco */
+  .deco-line {
+    position: absolute;
+    width: 1px;
+    background: linear-gradient(to bottom, transparent, var(--accent), transparent);
+    opacity: 0.25;
+    pointer-events: none;
+    z-index: 1;
+  }
+
+  /* ─── Slide-specific orb colors ─── */
+  .s1 .orb { background: #5b4fff; width: 500px; height: 500px; top: -100px; left: -100px; }
+  .s2 .orb { background: #ff9e40; width: 400px; height: 400px; bottom: -80px; right: -80px; }
+  .s3 .orb { background: #40ffb0; width: 450px; height: 450px; top: 50%; left: 50%; transform: translate(-50%,-50%); }
+  .s4 .orb { background: #b040ff; width: 500px; height: 500px; top: 0; right: 0; }
+  .s5 .orb { background: #ff4060; width: 420px; height: 420px; bottom: 0; left: 0; }
+
+  /* ─── UI overlay ─── */
+  .ui {
+    position: fixed; z-index: 100;
+    pointer-events: none;
+  }
+
+  /* Slide counter top-right */
+  .counter {
+    top: 2rem; right: 2.5rem;
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 0.9rem;
+    letter-spacing: 0.15em;
+    color: rgba(255,255,255,0.35);
+  }
+  .counter span { color: var(--accent); }
+
+  /* Progress bar bottom */
+  .progress-wrap {
+    bottom: 0; left: 0; right: 0;
+    height: 2px;
+    background: rgba(255,255,255,0.06);
+  }
+  .progress-bar {
+    height: 100%;
+    background: var(--accent);
+    width: 0%;
+    transition: width linear;
+  }
+
+  /* Navigation dots left-center */
+  .dots {
+    left: 2.5rem; top: 50%;
+    transform: translateY(-50%);
+    display: flex; flex-direction: column; gap: 12px;
+    pointer-events: all;
+  }
+  .dot {
+    width: 4px; height: 4px;
+    border-radius: 50%;
+    background: rgba(255,255,255,0.25);
+    cursor: pointer;
+    transition: transform 0.3s, background 0.3s, height 0.3s;
+    border: none;
+    padding: 0;
+  }
+  .dot.active {
+    background: var(--accent);
+    height: 24px;
+    border-radius: 2px;
+  }
+  .dot:hover:not(.active) {
+    background: rgba(255,255,255,0.6);
+    transform: scaleX(1.5);
+  }
+
+  /* Arrow nav right-center */
+  .arrows {
+    right: 2.5rem; top: 50%;
+    transform: translateY(-50%);
+    display: flex; flex-direction: column; gap: 8px;
+    pointer-events: all;
+  }
+  .arrow-btn {
+    width: 38px; height: 38px;
+    border: 1px solid rgba(255,255,255,0.15);
+    background: rgba(255,255,255,0.04);
+    color: rgba(255,255,255,0.6);
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer;
+    transition: background 0.2s, border-color 0.2s, color 0.2s;
+    font-size: 14px;
+  }
+  .arrow-btn:hover {
+    background: rgba(232,213,163,0.15);
+    border-color: var(--accent);
+    color: var(--accent);
+  }
+
+  /* Pause/play top-left */
+  .pause-ui {
+    top: 2rem; left: 2.5rem;
+    pointer-events: all;
+    display: flex; align-items: center; gap: 10px;
+  }
+  .pause-btn {
+    background: none; border: none;
+    color: rgba(255,255,255,0.35);
+    cursor: pointer;
+    font-size: 13px;
+    letter-spacing: 0.1em;
+    font-family: 'DM Sans', sans-serif;
+    transition: color 0.2s;
+    display: flex; align-items: center; gap: 6px;
+  }
+  .pause-btn:hover { color: var(--accent); }
+  .pause-icon {
+    width: 14px; height: 14px;
+    display: grid; grid-template-columns: 1fr 1fr; gap: 3px;
+  }
+  .pause-icon span {
+    background: currentColor;
+    border-radius: 1px;
+    display: block;
+  }
+  .pause-icon.playing span:last-child { display: none; }
+  .pause-icon.playing { grid-template-columns: 1fr; }
+  .pause-icon.playing span { clip-path: polygon(0 0, 100% 50%, 0 100%); background: currentColor; }
+</style>
+</head>
+<body>
+
+<div class="cursor" id="cursor"></div>
+<div class="cursor-ring" id="cursorRing"></div>
+
+<div class="show" id="show">
+
+  <!-- SLIDE 1 -->
+  <div class="slide s1 active" data-index="0">
+    <div class="orb"></div>
+    <div class="deco-line" style="height:60%;top:20%;left:18%;animation:drift 10s ease-in-out infinite alternate;"></div>
+    <div class="big-num">01</div>
+    <div class="slide-inner">
+      <p class="eyebrow">Collection Automne — 2024</p>
+      <h2 class="headline">L'ART<br>DE <em>L'INSTANT</em></h2>
+      <p class="sub">Chaque moment est une toile vierge. Ce que tu en fais devient une œuvre.</p>
+    </div>
+  </div>
+
+  <!-- SLIDE 2 -->
+  <div class="slide s2" data-index="1">
+    <div class="orb"></div>
+    <div class="deco-line" style="height:50%;bottom:10%;right:22%;"></div>
+    <div class="big-num" style="right:-2rem;bottom:-4rem;left:auto;">02</div>
+    <div class="slide-inner">
+      <p class="eyebrow">Vision — Architecture</p>
+      <h2 class="headline"><span class="outline">BÂTIR</span><br><em>L'AVENIR</em></h2>
+      <p class="sub">Les grandes structures naissent d'une idée audacieuse et d'une main déterminée.</p>
+    </div>
+  </div>
+
+  <!-- SLIDE 3 -->
+  <div class="slide s3" data-index="2">
+    <div class="orb"></div>
+    <div class="deco-line" style="height:70%;top:5%;left:50%;"></div>
+    <div class="big-num" style="top:-2rem;left:-1rem;">03</div>
+    <div class="slide-inner">
+      <p class="eyebrow">Nature — Équilibre</p>
+      <h2 class="headline">RESPIRE<br><em>LENTEMENT</em></h2>
+      <p class="sub">Dans le silence de la forêt, le monde reprend enfin son souffle naturel.</p>
+    </div>
+  </div>
+
+  <!-- SLIDE 4 -->
+  <div class="slide s4" data-index="3">
+    <div class="orb"></div>
+    <div class="deco-line" style="height:55%;top:15%;right:30%;"></div>
+    <div class="big-num" style="right:-1rem;top:0;">04</div>
+    <div class="slide-inner">
+      <p class="eyebrow">Technologie — Innovation</p>
+      <h2 class="headline"><em>CODE</em><br><span class="outline">POÉSIE</span></h2>
+      <p class="sub">Les algorithmes les plus élégants ressemblent à des vers d'une rare beauté.</p>
+    </div>
+  </div>
+
+  <!-- SLIDE 5 -->
+  <div class="slide s5" data-index="4">
+    <div class="orb"></div>
+    <div class="deco-line" style="height:65%;bottom:0;left:35%;"></div>
+    <div class="big-num" style="bottom:-4rem;right:-1rem;">05</div>
+    <div class="slide-inner">
+      <p class="eyebrow">Fin — Recommencement</p>
+      <h2 class="headline">TOUT<br>EST <em>CYCLE</em></h2>
+      <p class="sub">Après chaque fin se cache une nouvelle aube, encore inconnue et magnifique.</p>
+    </div>
+  </div>
+
+</div>
+
+<!-- UI Overlay -->
+<div class="ui counter" id="counter">
+  <span id="cur">01</span> / 05
+</div>
+
+<div class="ui progress-wrap">
+  <div class="progress-bar" id="bar"></div>
+</div>
+
+<div class="ui dots" id="dotsWrap"></div>
+
+<div class="ui arrows">
+  <button class="arrow-btn" id="btnUp" title="Précédent">&#8593;</button>
+  <button class="arrow-btn" id="btnDown" title="Suivant">&#8595;</button>
+</div>
+
+<div class="ui pause-ui">
+  <button class="pause-btn" id="pauseBtn">
+    <span class="pause-icon" id="pauseIcon">
+      <span></span><span></span>
+    </span>
+    <span id="pauseLabel">Pause</span>
+  </button>
+</div>
+
+<script>
+const DURATION = 5000;
+const slides = document.querySelectorAll('.slide');
+const N = slides.length;
+let cur = 0, paused = false, elapsed = 0, startTime = null, rafId = null;
+
+// Build dots
+const dotsWrap = document.getElementById('dotsWrap');
+const dots = [];
+slides.forEach((_, i) => {
+  const d = document.createElement('button');
+  d.className = 'dot' + (i === 0 ? ' active' : '');
+  d.title = 'Diapositive ' + (i+1);
+  d.addEventListener('click', () => goTo(i));
+  dotsWrap.appendChild(d);
+  dots.push(d);
+});
+
+const bar = document.getElementById('bar');
+const curEl = document.getElementById('cur');
+const pauseBtn = document.getElementById('pauseBtn');
+const pauseIcon = document.getElementById('pauseIcon');
+const pauseLabel = document.getElementById('pauseLabel');
+
+function pad(n) { return String(n).padStart(2,'0'); }
+
+function goTo(n) {
+  slides[cur].classList.remove('active');
+  dots[cur].classList.remove('active');
+  cur = (n + N) % N;
+  slides[cur].classList.add('active');
+  dots[cur].classList.add('active');
+  curEl.textContent = pad(cur + 1);
+  resetTimer();
+}
+
+function resetTimer() {
+  elapsed = 0;
+  startTime = performance.now();
+  bar.style.transition = 'none';
+  bar.style.width = '0%';
+  if (!paused) requestAnimationFrame(tick);
+}
+
+function tick(now) {
+  if (paused) return;
+  const delta = (now - startTime) + elapsed;
+  const pct = Math.min(delta / DURATION * 100, 100);
+  bar.style.transition = 'none';
+  bar.style.width = pct + '%';
+  if (delta >= DURATION) { goTo(cur + 1); return; }
+  rafId = requestAnimationFrame(tick);
+}
+
+pauseBtn.addEventListener('click', () => {
+  paused = !paused;
+  if (paused) {
+    elapsed += performance.now() - startTime;
+    cancelAnimationFrame(rafId);
+    pauseIcon.className = 'pause-icon playing';
+    pauseLabel.textContent = 'Lecture';
+  } else {
+    startTime = performance.now();
+    pauseIcon.className = 'pause-icon';
+    pauseLabel.textContent = 'Pause';
+    requestAnimationFrame(tick);
+  }
+});
+
+document.getElementById('btnUp').addEventListener('click', () => goTo(cur - 1));
+document.getElementById('btnDown').addEventListener('click', () => goTo(cur + 1));
+
+// Keyboard nav
+document.addEventListener('keydown', e => {
+  if (e.key === 'ArrowRight' || e.key === 'ArrowDown') goTo(cur + 1);
+  if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') goTo(cur - 1);
+  if (e.key === ' ') { e.preventDefault(); pauseBtn.click(); }
+});
+
+// Custom cursor
+const cursor = document.getElementById('cursor');
+const ring = document.getElementById('cursorRing');
+let mx=0, my=0, rx=0, ry=0;
+document.addEventListener('mousemove', e => { mx = e.clientX; my = e.clientY; });
+(function animCursor() {
+  cursor.style.left = mx + 'px'; cursor.style.top = my + 'px';
+  rx += (mx - rx) * 0.12; ry += (my - ry) * 0.12;
+  ring.style.left = rx + 'px'; ring.style.top = ry + 'px';
+  requestAnimationFrame(animCursor);
+})();
+
+// Start
+resetTimer();
+requestAnimationFrame(tick);
+</script>
+</body>
+</html>
